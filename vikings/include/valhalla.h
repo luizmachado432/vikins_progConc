@@ -24,13 +24,13 @@
      * @brief Define os atributos de valhalla.
      */
     typedef struct valhalla
-    {
-        unsigned int prayers[NUMBER_OF_GODS]; /* Controla o número de preces por deus. */
+{
+    unsigned int prayers[NUMBER_OF_GODS];
 
-        /* TODO: Adicione aqui os atributos que achar necessários para implementar o
-        comportamento de valhalla. Esses atributos deverão ser usados pelas funções
-        de valhalla. */
-    } valhalla_t;
+    pthread_mutex_t pray_mutex;     /* protege prayers[] */
+
+    /* TODO: Adicione aqui os atributos... */
+} valhalla_t;
 
     /*============================================================================*
     * Funções utilizadas em arquivos que incluem esse .h                         *

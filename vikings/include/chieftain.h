@@ -17,9 +17,19 @@
     {
         valhalla_t *valhalla;   /* Referência para valhalla.  */
         
-        /* TODO: Adicione aqui os atributos que achar necessários para implementar o
-        comportamento do chieftain. Esses atributos deverão ser usados pelas funções
-        do chieftain. */
+        /* mesa */
+        int *seats;                     /* estado de cada cadeira: -1=vazia, 0=normal, 1=berserker */
+        pthread_mutex_t table_mutex;
+        pthread_cond_t  table_cond;
+
+        /* barreira do banquete */
+        int banquet_done;               /* quantos ja terminaram de comer */
+        int banquet_total;              /* total de vikings normais        */
+        pthread_mutex_t banquet_mutex;
+        pthread_cond_t  banquet_cond;
+
+        /* rand() para escolha de deus */
+        pthread_mutex_t god_mutex;
     } chieftain_t;
 
     /*============================================================================*
