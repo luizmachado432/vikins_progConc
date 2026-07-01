@@ -20,7 +20,7 @@ void viking_init(viking_t *self, chieftain_t *chieftain, valhalla_t *valhalla, i
 void viking_finalize(viking_t *self)
 {
     /* TODO: Adicionar código aqui se necessário! */
-    plog("[viking] Finalized");
+    plog("[viking] Finalized (id=%d)\n", self->id);
 }
 
 /* --------------------------------------------------------- */

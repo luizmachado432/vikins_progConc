@@ -96,7 +96,7 @@ void chieftain_release_seat_plates(chieftain_t *self, int pos)
 
     /* 
      * registra que mais um viking terminou de comer
-     * quando o ultimo terminar dispara o sinal para todos que estao esperando (a pessoa 2 vai ter que pensar nisso)
+     * quando o ultimo terminar dispara o sinal para todos que estao esperando 
      * */
     pthread_mutex_lock(&self->banquet_mutex);
     self->banquet_done++;
@@ -119,8 +119,82 @@ god_t chieftain_get_god(chieftain_t *self)
      *   god_mutex - mutex para usar para proteger o rand()
      *   valhalla->prayers[] - usei como contadores de preces por deus
      *   valhalla->pray_mutex - eu criei em valhalla.h para usar ao ler prayers[] */
-    god_t god = THOR;
-    return god;
+    
+    //barreira
+    pthread_mutex_lock(&self->banquet_mutex);
+    while (self->banquet_done < self->banquet_total) {
+        pthread_cond_wait(&self->banquet_cond, &self->banquet_mutex);
+    }
+    pthread_mutex_unlock(&self->banquet_mutex);
+
+    // escolha deus aleatorio
+    god_t all_gods[8] = {BALDR, LOKI, VALI, HODER, FRIGG, JORD, ODIN, THOR};
+    pthread_mutex_lock(&self->god_mutex);
+    int start_index = rand() % 8;
+    pthread_mutex_unlock(&self->god_mutex);
+
+    god_t chosen_god = THOR; // deus padrão caso não encontre nenhum deus melhor
+    pthread_mutex_lock(&self->valhalla->pray_mutex);
+    for (int i = 0; i < 8; i++) {
+        int index = (start_index + i) % 8;
+        god_t current_god = all_gods[index];
+        int is_valid = 0;
+
+        if (current_god == THOR || current_god == ODIN) {
+            // thor e odin: até 10% a mais que a soma dos outros 6
+            int sum_6 = self->valhalla->prayers[BALDR] + self->valhalla->prayers[LOKI] +
+                        self->valhalla->prayers[VALI]  + self->valhalla->prayers[HODER] +
+                        self->valhalla->prayers[FRIGG] + self->valhalla->prayers[JORD];
+
+            int my_count = self->valhalla->prayers[current_god] + 1;
+            int tolerance = (int) ceil(sum_6 * 0.10);
+            
+            // anti-deadlock para quando todas as preces iniciarem zeradas
+            if (tolerance == 0) tolerance = 1; 
+
+            if (my_count <= sum_6 + tolerance) {
+                is_valid = 1;
+            }
+        } else {
+            //  deuses rivais
+            god_t rival;
+            if (current_god == BALDR) rival = LOKI;
+            else if (current_god == LOKI) rival = BALDR;
+            else if (current_god == VALI) rival = HODER;
+            else if (current_god == HODER) rival = VALI;
+            else if (current_god == FRIGG) rival = JORD;
+            else if (current_god == JORD) rival = FRIGG;
+            
+            int my_count = self->valhalla->prayers[current_god] + 1;
+            int rival_count = self->valhalla->prayers[rival];
+            
+            // Se o atual ficar atrás ou empatado, é sempre seguro
+            if (my_count <= rival_count) {
+                is_valid = 1; 
+            } else {
+                // Se for ultrapassar, ve se a diferença excede 5% (arredondando para cima)
+                int diff = my_count - rival_count;
+                int tolerance = (int) ceil(rival_count * 0.05);
+                
+                if (tolerance == 0) tolerance = 1; // para o zero absoluto
+
+                if (diff <= tolerance) {
+                    is_valid = 1;
+                }
+            }
+        }
+
+        // se encontrou um deus válido, registra a prece, sai do loop e libera o mutex
+        if (is_valid) {
+            self->valhalla->prayers[current_god]++;
+            chosen_god = current_god;
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&self->valhalla->pray_mutex);
+
+    return chosen_god;
 }
 
 void chieftain_finalize(chieftain_t *self)
